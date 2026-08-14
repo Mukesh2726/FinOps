@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { TrendingUp, Sparkles } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export default function Auth({ mode }) {
@@ -8,13 +8,18 @@ export default function Auth({ mode }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useApp();
+  const { login, company } = useApp();
   const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => { login(email); navigate('/onboarding'); }, 900);
+    setTimeout(() => {
+      login(email, name);
+      // If returning user already has a company, go straight to dashboard
+      const savedCompany = (() => { try { const v = localStorage.getItem('fo_company'); return v ? JSON.parse(v) : null; } catch { return null; } })();
+      navigate(savedCompany ? '/dashboard' : '/onboarding');
+    }, 900);
   };
 
   return (

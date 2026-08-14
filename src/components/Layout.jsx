@@ -1,5 +1,5 @@
-import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Upload, CheckSquare, FileText, LogOut, TrendingUp, Building2, Sparkles } from 'lucide-react';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
+import { LayoutDashboard, Upload, CheckSquare, FileText, LogOut, TrendingUp, Building2, Sparkles, UserCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const nav = [
@@ -7,6 +7,7 @@ const nav = [
   { to: '/upload', icon: Upload, label: 'Upload' },
   { to: '/review', icon: CheckSquare, label: 'Review Center' },
   { to: '/reports', icon: FileText, label: 'Reports' },
+  { to: '/profile', icon: UserCircle, label: 'Profile' },
 ];
 
 export default function Layout({ children }) {
@@ -38,8 +39,11 @@ export default function Layout({ children }) {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <span className="user-email">{user?.email}</span>
-          <button onClick={handleLogout} className="logout-btn"><LogOut size={16} /></button>
+          <Link to="/profile" className="user-email-link">
+            <UserCircle size={15} />
+            <span className="user-email">{user?.email}</span>
+          </Link>
+          <button onClick={handleLogout} className="logout-btn" title="Sign out"><LogOut size={16} /></button>
         </div>
       </aside>
       <main className="main-content">{children}</main>

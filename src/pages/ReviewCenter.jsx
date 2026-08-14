@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Check, X, Edit2, ChevronDown } from 'lucide-react';
+import { Check, X, Edit2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useApp } from '../context/AppContext';
 import { CATEGORIES } from '../data/mockData';
@@ -36,7 +37,7 @@ export default function ReviewCenter() {
 
       {transactions.length === 0 ? (
         <div className="empty-state">
-          <p>No transactions yet. <a href="/upload">Upload documents</a> to get started.</p>
+          <p>No transactions yet. <Link to="/upload">Upload documents</Link> to get started.</p>
         </div>
       ) : (
         <>

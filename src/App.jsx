@@ -7,10 +7,11 @@ import Dashboard from './pages/Dashboard';
 import Upload from './pages/Upload';
 import ReviewCenter from './pages/ReviewCenter';
 import Reports from './pages/Reports';
+import Profile from './pages/Profile';
 
 function ProtectedRoute({ children }) {
   const { user } = useApp();
-  return user ? children : <Navigate to="/login" />;
+  return user ? children : <Navigate to="/login" replace />;
 }
 
 function AppRoutes() {
@@ -24,6 +25,7 @@ function AppRoutes() {
       <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
       <Route path="/review" element={<ProtectedRoute><ReviewCenter /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     </Routes>
   );
 }

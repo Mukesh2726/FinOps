@@ -1,18 +1,61 @@
 import { useState, useRef } from 'react';
-import { Upload as UploadIcon, FileText, Image, CheckCircle, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Upload as UploadIcon, FileText, Image, CheckCircle, X, Lock, Eye, EyeOff } from 'lucide-react';
 import Layout from '../components/Layout';
 import { useApp } from '../context/AppContext';
 import { MOCK_TRANSACTIONS } from '../data/mockData';
 
 const DOC_TYPES = ['Bank Statement', 'Invoice', 'Bill', 'Receipt', 'Expense Photo'];
 
+function PasswordModal({ onSubmit, onCancel, isRetry }) {
+  const [pwd, setPwd] = useState('');
+  const [show, setShow] = useState(false);
+  return (
+    <div className="modal-overlay">
+      <div className="modal-card">
+        <div className="modal-icon"><Lock size={24} /></div>
+        <h3>{isRetry ? 'Password incorrect' : 'Bank Statement Password'}</h3>
+        <p className="modal-sub">
+          {isRetry
+            ? 'The stored password did not work. Enter the correct password for this statement.'
+            : 'This statement is password-protected. Enter the password to unlock it.'}
+        </p>
+        <div className="pwd-input-wrap">
+          <input
+            className="input"
+            type={show ? 'text' : 'password'}
+            placeholder="Statement password"
+            value={pwd}
+            onChange={e => setPwd(e.target.value)}
+            autoFocus
+          />
+          <button type="button" className="pwd-toggle" onClick={() => setShow(s => !s)}>
+            {show ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
+        <p className="modal-note">
+          <Lock size={11} /> Password is stored securely and never shown again.
+        </p>
+        <div className="modal-actions">
+          <button className="btn-ghost" onClick={onCancel}>Cancel</button>
+          <button className="btn-primary" disabled={!pwd.trim()} onClick={() => onSubmit(pwd)}>
+            Unlock & Process
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Upload() {
   const [files, setFiles] = useState([]);
   const [processing, setProcessing] = useState(false);
   const [done, setDone] = useState(false);
   const [docType, setDocType] = useState('Bank Statement');
+  const [showPwdModal, setShowPwdModal] = useState(false);
+  const [pwdRetry, setPwdRetry] = useState(false);
   const inputRef = useRef();
-  const { setTransactions } = useApp();
+  const { setTransactions, hasStatementPassword, saveStatementPassword, tryStoredStatementPassword } = useApp();
 
   const handleDrop = (e) => {
     e.preventDefault();
@@ -25,8 +68,9 @@ export default function Upload() {
 
   const removeFile = (id) => setFiles(prev => prev.filter(f => f.id !== id));
 
-  const handleProcess = () => {
+  const runProcessing = () => {
     setProcessing(true);
+    setShowPwdModal(false);
     setTimeout(() => {
       setTransactions(MOCK_TRANSACTIONS);
       setProcessing(false);
@@ -34,8 +78,43 @@ export default function Upload() {
     }, 2500);
   };
 
+  const handleProcess = () => {
+    if (docType !== 'Bank Statement') {
+      runProcessing();
+      return;
+    }
+    // Bank statement: check if stored password exists
+    if (tryStoredStatementPassword()) {
+      // Simulate: stored password works (95% of the time in real life)
+      // For demo, always succeeds if stored. In production, backend would validate.
+      runProcessing();
+    } else {
+      // No stored password — ask user
+      setPwdRetry(false);
+      setShowPwdModal(true);
+    }
+  };
+
+  const handlePasswordSubmit = (pwd) => {
+    saveStatementPassword(pwd);
+    runProcessing();
+  };
+
+  const handlePasswordCancel = () => {
+    setShowPwdModal(false);
+    setPwdRetry(false);
+  };
+
   return (
     <Layout>
+      {showPwdModal && (
+        <PasswordModal
+          isRetry={pwdRetry}
+          onSubmit={handlePasswordSubmit}
+          onCancel={handlePasswordCancel}
+        />
+      )}
+
       <div className="page-header">
         <div><h1>Upload Documents</h1><p>Upload bank statements, invoices, bills, and receipts</p></div>
       </div>
@@ -48,6 +127,12 @@ export default function Upload() {
                 className={`type-chip ${docType === t ? 'selected' : ''}`}>{t}</button>
             ))}
           </div>
+
+          {docType === 'Bank Statement' && hasStatementPassword() && (
+            <div className="pwd-saved-notice">
+              <Lock size={13} /> Password saved — will be used automatically for this statement.
+            </div>
+          )}
 
           <div className="drop-zone" onDrop={handleDrop} onDragOver={e => e.preventDefault()}
             onClick={() => inputRef.current.click()}>
@@ -74,7 +159,8 @@ export default function Upload() {
           {done ? (
             <div className="upload-success">
               <CheckCircle size={24} />
-              <span>AI processed {MOCK_TRANSACTIONS.length} transactions. <a href="/review">Review now →</a></span>
+              {/* FIX: use Link instead of <a href> to prevent full page reload and session loss */}
+              <span>AI processed {MOCK_TRANSACTIONS.length} transactions. <Link to="/review">Review now →</Link></span>
             </div>
           ) : (
             <button className="btn-primary btn-full" disabled={files.length === 0 || processing}
