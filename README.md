@@ -1,16 +1,62 @@
-# React + Vite
+# FinOps — AI Accounting Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Full-stack AI-powered bookkeeping application.
 
-Currently, two official plugins are available:
+## Structure
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```
+project-root/
+├── frontend/     React + Vite + Supabase Auth
+└── backend/      FastAPI + PostgreSQL + Supabase + Celery + Redis
+```
 
-## React Compiler
+## Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Frontend
+```bash
+cd frontend
+npm install
+cp .env.example .env   # fill VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_API_URL
+npm run dev
+```
 
-## Expanding the Oxlint configuration
+### Backend
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env   # fill all values
+uvicorn app.main:app --reload
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### Celery Worker
+```bash
+cd backend
+celery -A app.workers.celery_app worker --loglevel=info
+```
+
+## Required Services
+
+| Service | Purpose |
+|---------|---------|
+| Supabase | Auth + Storage |
+| PostgreSQL | Primary database (via Supabase or self-hosted) |
+| Redis | Celery broker |
+| Gemini API | AI extraction & categorization |
+
+## Architecture
+
+```
+Frontend (React)
+    ↓ Supabase Auth (JWT)
+FastAPI Backend
+    ↓
+PostgreSQL (SQLAlchemy)
+    ↓
+Celery + Redis (background tasks)
+    ↓
+Gemini AI (extraction)
+    ↓
+Supabase Storage (files)
+```
