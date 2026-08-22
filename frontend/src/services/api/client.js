@@ -3,9 +3,13 @@ import { supabase } from '../supabase';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 async function getAuthHeaders() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not authenticated');
-  return { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' };
+  if (supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+    return { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' };
+  }
+
+  return { Authorization: 'Bearer local-development-session', 'Content-Type': 'application/json' };
 }
 
 async function request(method, path, body) {
@@ -20,9 +24,25 @@ async function request(method, path, body) {
   return data;
 }
 
+async function download(path) {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_URL}${path}`, { headers });
+  if (!res.ok) throw new Error('Download failed');
+  return res.blob();
+}
+
+async function upload(url, file) {
+  const headers = await getAuthHeaders();
+  headers['Content-Type'] = file.type || 'application/octet-stream';
+  const res = await fetch(url, { method: 'PUT', headers, body: file });
+  if (!res.ok) throw new Error('Storage upload failed');
+}
+
 export const api = {
   get: (path) => request('GET', path),
   post: (path, body) => request('POST', path, body),
   patch: (path, body) => request('PATCH', path, body),
   delete: (path) => request('DELETE', path),
+  download,
+  upload,
 };

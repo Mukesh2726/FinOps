@@ -1,10 +1,19 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, Text, ForeignKey, Enum as SAEnum
+from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, Text, ForeignKey, Enum as SAEnum, Table
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database.session import Base
 import enum
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String, nullable=False, unique=True, index=True)
+    hashed_password = Column(String, nullable=False)
+    full_name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class DocumentStatus(str, enum.Enum):
@@ -33,6 +42,14 @@ class TransactionType(str, enum.Enum):
     expense = "expense"
 
 
+transaction_documents = Table(
+    "transaction_documents",
+    Base.metadata,
+    Column("transaction_id", UUID(as_uuid=True), ForeignKey("transactions.id", ondelete="CASCADE"), primary_key=True),
+    Column("document_id", UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
 class Workspace(Base):
     __tablename__ = "workspaces"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -55,8 +72,18 @@ class Document(Base):
     status = Column(SAEnum(DocumentStatus), default=DocumentStatus.uploaded)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    processed_at = Column(DateTime, nullable=True)
+    bank_name = Column(String, nullable=True)
+    account_number_masked = Column(String, nullable=True)
+    statement_start_date = Column(String, nullable=True, index=True)
+    statement_end_date = Column(String, nullable=True, index=True)
+    opening_balance = Column(Float, nullable=True)
+    closing_balance = Column(Float, nullable=True)
+    transaction_count = Column(Integer, default=0, nullable=False)
     workspace = relationship("Workspace", back_populates="documents")
-    transactions = relationship("Transaction", back_populates="document")
+    transactions = relationship("Transaction", back_populates="document", foreign_keys="Transaction.document_id")
+    source_transactions = relationship("Transaction", secondary=transaction_documents, back_populates="source_documents")
 
 
 class Transaction(Base):
@@ -65,19 +92,29 @@ class Transaction(Base):
     workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False, index=True)
     document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id"), nullable=True)
     date = Column(String, nullable=False)
+    transaction_date = Column(String, nullable=False, index=True)
     vendor = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
     amount = Column(Float, nullable=False)
+    debit = Column(Float, nullable=True)
+    credit = Column(Float, nullable=True)
+    balance = Column(Float, nullable=True)
     type = Column(SAEnum(TransactionType), nullable=False)
     category = Column(String, nullable=True)
     confidence = Column(Integer, default=0)
     prediction_source = Column(String, nullable=True)
     status = Column(SAEnum(TransactionStatus), default=TransactionStatus.pending)
     is_duplicate = Column(Boolean, default=False)
+    fingerprint = Column(String, nullable=True, index=True)
+    transaction_reference = Column(String, nullable=True, index=True)
+    duplicate_of_id = Column(UUID(as_uuid=True), ForeignKey("transactions.id"), nullable=True)
     anomaly_flag = Column(Boolean, default=False)
     anomaly_reason = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     workspace = relationship("Workspace", back_populates="transactions")
-    document = relationship("Document", back_populates="transactions")
+    document = relationship("Document", back_populates="transactions", foreign_keys=[document_id])
+    source_documents = relationship("Document", secondary=transaction_documents, back_populates="source_transactions")
+    duplicate_of = relationship("Transaction", remote_side=[id], uselist=False)
 
 
 class StatementPassword(Base):

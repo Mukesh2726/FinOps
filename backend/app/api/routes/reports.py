@@ -21,23 +21,31 @@ def _get_workspace(user_id: str, db: Session) -> Workspace:
     return ws
 
 
-def _approved_txns(ws_id, month: int, year: int, db: Session):
-    return db.query(Transaction).filter(
+def _approved_txns(ws_id, month: int | None, year: int | None, db: Session, from_date: str | None = None, to_date: str | None = None):
+    query = db.query(Transaction).filter(
         Transaction.workspace_id == ws_id,
         Transaction.status == TransactionStatus.approved,
-        Transaction.date.like(f"{year}-{month:02d}-%"),
-    ).all()
+    )
+    if from_date:
+        query = query.filter(Transaction.date >= from_date)
+    if to_date:
+        query = query.filter(Transaction.date <= to_date)
+    if not from_date and not to_date and month and year:
+        query = query.filter(Transaction.date.like(f"{year}-{month:02d}-%"))
+    return query.order_by(Transaction.date.asc()).all()
 
 
 @router.get("/reports/pl", response_model=PLReport)
 async def get_pl(
-    month: int = Query(..., ge=1, le=12),
-    year: int = Query(..., ge=2000),
+    month: int | None = Query(None, ge=1, le=12),
+    year: int | None = Query(None, ge=2000),
+    from_date: str | None = Query(None, alias="from"),
+    to_date: str | None = Query(None, alias="to"),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     ws = _get_workspace(current_user["id"], db)
-    txns = _approved_txns(ws.id, month, year, db)
+    txns = _approved_txns(ws.id, month, year, db, from_date, to_date)
     revenue = sum(t.amount for t in txns if t.type == TransactionType.income)
     expenses_by_cat = defaultdict(float)
     for t in txns:
@@ -58,13 +66,14 @@ async def get_pl(
 
 @router.get("/reports/balance-sheet", response_model=BalanceSheetReport)
 async def get_balance_sheet(
-    month: int = Query(..., ge=1, le=12),
-    year: int = Query(..., ge=2000),
+    month: int | None = Query(None, ge=1, le=12),
+    year: int | None = Query(None, ge=2000),
+    as_of: str | None = Query(None),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     ws = _get_workspace(current_user["id"], db)
-    txns = _approved_txns(ws.id, month, year, db)
+    txns = _approved_txns(ws.id, month, year, db, to_date=as_of)
     revenue = sum(t.amount for t in txns if t.type == TransactionType.income)
     expenses = sum(t.amount for t in txns if t.type == TransactionType.expense)
     cash = revenue - expenses
@@ -82,13 +91,15 @@ async def get_balance_sheet(
 
 @router.get("/reports/cashflow", response_model=CashFlowReport)
 async def get_cashflow(
-    month: int = Query(..., ge=1, le=12),
-    year: int = Query(..., ge=2000),
+    month: int | None = Query(None, ge=1, le=12),
+    year: int | None = Query(None, ge=2000),
+    from_date: str | None = Query(None, alias="from"),
+    to_date: str | None = Query(None, alias="to"),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     ws = _get_workspace(current_user["id"], db)
-    txns = _approved_txns(ws.id, month, year, db)
+    txns = _approved_txns(ws.id, month, year, db, from_date, to_date)
     revenue = sum(t.amount for t in txns if t.type == TransactionType.income)
     expenses = sum(t.amount for t in txns if t.type == TransactionType.expense)
     investing = -(expenses * 0.05)

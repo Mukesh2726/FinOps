@@ -2,18 +2,19 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
-from app.core.logging import get_logger
 from app.database.session import engine, Base
 from app.api.routes import workspace, documents, transactions, reports
+from app.api.routes.auth import router as auth_router
+from app.api.routes.storage import router as storage_router
 
-# Create tables
 Base.metadata.create_all(bind=engine)
 
-logger = get_logger(__name__)
+app = FastAPI(
+    title="FinOps API",
+    version="1.0.0",
+    docs_url="/docs" if settings.environment == "development" else None,
+)
 
-app = FastAPI(title="FinOps API", version="1.0.0", docs_url="/docs" if settings.environment == "development" else None)
-
-# CORS
 origins = [settings.frontend_url]
 if settings.environment == "development":
     origins += ["http://localhost:5173", "http://localhost:3000"]
@@ -29,14 +30,14 @@ app.add_middleware(
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error("unhandled_exception", path=request.url.path, error=str(exc))
     return JSONResponse(
         status_code=500,
-        content={"success": False, "message": "Internal server error", "error_code": "INTERNAL_ERROR"},
+        content={"success": False, "message": "Internal server error"},
     )
 
 
-# Routers
+app.include_router(auth_router, prefix="/api", tags=["auth"])
+app.include_router(storage_router, prefix="/api", tags=["storage"])
 app.include_router(workspace.router, prefix="/api", tags=["workspace"])
 app.include_router(documents.router, prefix="/api", tags=["documents"])
 app.include_router(transactions.router, prefix="/api", tags=["transactions"])

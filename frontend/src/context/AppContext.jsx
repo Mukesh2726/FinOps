@@ -1,18 +1,35 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { authApi } from '../services/api/auth';
-import { profileApi, workspaceApi } from '../services/api/workspace';
+import { workspaceApi } from '../services/api/workspace';
 import { transactionsApi } from '../services/api/transactions';
-
-const AppContext = createContext(null);
+import { AppContext } from './contextValue';
+import { getPlan } from '../config/subscriptionPlans';
+import { subscriptionService } from '../services/subscriptionService';
+import { isSupabaseConfigured } from '../services/supabase';
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [company, setCompany] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [authLoading, setAuthLoading] = useState(true);
+  const [subscription, setSubscription] = useState(null);
+  const [usage, setUsage] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+
+  const loadSubscription = async () => {
+    setSubscriptionLoading(true);
+    try {
+      const current = await subscriptionService.getSubscription();
+      setSubscription({ ...current, plan: getPlan(current.planId) });
+      setUsage(await subscriptionService.getUsage());
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
 
   // Listen to Supabase auth state
   useEffect(() => {
+    loadSubscription();
     authApi.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser({ id: session.user.id, email: session.user.email, name: session.user.user_metadata?.full_name || session.user.email.split('@')[0] });
@@ -34,6 +51,26 @@ export function AppProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const selectPlan = async (planId) => {
+    const next = await subscriptionService.checkout(planId);
+    setSubscription({ ...next, plan: getPlan(next.planId) });
+    setUsage(await subscriptionService.getUsage());
+    return next;
+  };
+
+  const changePlan = async (planId) => {
+    const next = await subscriptionService.changePlan(planId);
+    setSubscription({ ...next, plan: getPlan(next.planId) });
+    setUsage(await subscriptionService.getUsage());
+    return next;
+  };
+
+  const cancelSubscription = async () => {
+    const next = await subscriptionService.cancel();
+    setSubscription({ ...next, plan: getPlan(next.planId) });
+    return next;
+  };
+
   const loadWorkspace = async () => {
     try {
       const data = await workspaceApi.get();
@@ -46,6 +83,16 @@ export function AppProvider({ children }) {
   const login = async (email, password) => {
     const { error } = await authApi.signIn(email, password);
     if (error) throw error;
+  };
+
+  const loginWithGoogle = async () => {
+    const result = await authApi.signInWithGoogle();
+    if (result.error) throw result.error;
+    if (result.local && result.data?.user) {
+      const signedInUser = result.data.user;
+      setUser({ id: signedInUser.id, email: signedInUser.email, name: signedInUser.user_metadata.full_name });
+    }
+    return result;
   };
 
   const signup = async (email, password, name) => {
@@ -61,6 +108,11 @@ export function AppProvider({ children }) {
   };
 
   const setupCompany = async (data) => {
+    if (!isSupabaseConfigured) {
+      const workspace = { id: 'local-workspace', ...data, created_at: new Date().toISOString() };
+      setCompany(workspace);
+      return { workspace };
+    }
     const result = await workspaceApi.setup(data);
     setCompany(result.workspace);
     return result;
@@ -81,12 +133,12 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       user, company, transactions, authLoading,
-      login, signup, logout, setupCompany,
+      login, loginWithGoogle, signup, logout, setupCompany,
       loadTransactions, updateTransaction, setTransactions,
+      subscription, subscriptionLoading, usage, selectPlan, changePlan, cancelSubscription,
     }}>
       {children}
     </AppContext.Provider>
   );
 }
 
-export const useApp = () => useContext(AppContext);

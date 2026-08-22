@@ -2,12 +2,6 @@ export const BUSINESS_TYPES = [
   'Marketing Agency', 'Ecommerce Store', 'Freelancer', 'Consultancy', 'Retail Store',
 ];
 
-export const PLANS = [
-  { id: 'starter', name: 'Starter', price: '$9/mo', features: ['Up to 100 transactions', 'Basic reports', 'Email support'] },
-  { id: 'growth', name: 'Growth', price: '$29/mo', features: ['Unlimited transactions', 'AI categorization', 'All reports', 'Priority support'] },
-  { id: 'enterprise', name: 'Enterprise', price: '$99/mo', features: ['Everything in Growth', 'Multi-company', 'API access', 'Dedicated support'] },
-];
-
 export const CATEGORIES = [
   'Revenue', 'Office Expense', 'Marketing Expense', 'Software & Subscriptions',
   'Travel & Transport', 'Meals & Entertainment', 'Payroll', 'Rent & Utilities',

@@ -50,6 +50,15 @@ class DocumentOut(BaseModel):
     doc_type: DocumentType
     status: DocumentStatus
     created_at: datetime
+    uploaded_at: datetime
+    processed_at: Optional[datetime] = None
+    bank_name: Optional[str] = None
+    account_number_masked: Optional[str] = None
+    statement_start_date: Optional[str] = None
+    statement_end_date: Optional[str] = None
+    opening_balance: Optional[float] = None
+    closing_balance: Optional[float] = None
+    transaction_count: int = 0
 
     class Config:
         from_attributes = True
@@ -71,8 +80,13 @@ class TransactionUpdate(BaseModel):
 class TransactionOut(BaseModel):
     id: UUID4
     date: str
+    transaction_date: str
     vendor: str
+    description: Optional[str] = None
     amount: float
+    debit: Optional[float] = None
+    credit: Optional[float] = None
+    balance: Optional[float] = None
     type: TransactionType
     category: Optional[str]
     confidence: int
@@ -81,6 +95,9 @@ class TransactionOut(BaseModel):
     is_duplicate: bool
     anomaly_flag: bool
     anomaly_reason: Optional[str]
+    document_id: Optional[UUID4] = None
+    workspace_id: UUID4
+    fingerprint: Optional[str] = None
 
     class Config:
         from_attributes = True

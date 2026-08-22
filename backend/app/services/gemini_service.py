@@ -21,7 +21,12 @@ Extract all financial transactions from the following document text.
 Return a JSON array. Each item must have:
   - date: string (YYYY-MM-DD)
   - vendor: string
+    - description: string
   - amount: number (positive)
+    - debit: number (positive, 0 for credits)
+    - credit: number (positive, 0 for debits)
+    - balance: number or null
+    - transaction_reference: string or null
   - type: "income" or "expense"
   - category: one of {categories}
   - confidence: integer 0-100

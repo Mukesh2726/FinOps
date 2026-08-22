@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { TrendingUp } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { authApi } from '../services/api/auth';
+import { motion } from 'framer-motion';
+import { useApp } from '../context/useApp';
 
 export default function Auth({ mode }) {
   const [email, setEmail] = useState('');
@@ -10,7 +10,7 @@ export default function Auth({ mode }) {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login, signup, company } = useApp();
+  const { login, loginWithGoogle, signup, company } = useApp();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -32,13 +32,29 @@ export default function Auth({ mode }) {
     }
   };
 
-  const handleGoogle = () => authApi.signInWithGoogle();
+  const handleGoogle = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await loginWithGoogle();
+      if (result.local) navigate('/onboarding');
+    } catch (err) {
+      setError(err.message || 'Google authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="auth-page">
       <div className="auth-orb auth-orb--1" />
       <div className="auth-orb auth-orb--2" />
-      <div className="auth-card animate-in">
+      <motion.div
+        className="auth-card"
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+      >
         <div className="auth-brand">
           <div className="brand-icon"><TrendingUp size={16} /></div>
           <span>FinOps</span>
@@ -55,10 +71,10 @@ export default function Auth({ mode }) {
             onChange={e => setEmail(e.target.value)} required />
           <input className="input" type="password" placeholder="Password" value={password}
             onChange={e => setPassword(e.target.value)} required minLength={6} />
-          <button type="submit" className="btn-primary btn-full btn-glow" disabled={loading}>
+          <button type="submit" className="glow-btn glow-btn--primary glow-btn--full glow-btn--md" disabled={loading}>
             {loading ? <span className="btn-spinner" /> : (mode === 'signup' ? 'Create Account' : 'Sign In')}
           </button>
-          <button type="button" className="btn-outline btn-full" onClick={handleGoogle}>
+          <button type="button" className="glow-btn glow-btn--outline glow-btn--full glow-btn--md" onClick={handleGoogle}>
             Continue with Google
           </button>
         </form>
@@ -68,7 +84,7 @@ export default function Auth({ mode }) {
             {mode === 'signup' ? 'Sign in' : 'Sign up free'}
           </Link>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }
